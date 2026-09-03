@@ -45,6 +45,8 @@
   var minDate = daily.length ? daily[0].d : '2026-01-01';
   var maxDate = daily.length ? daily[daily.length - 1].d : '2026-01-01';
   function firstOfMonth(ds) { return ds.slice(0, 7) + '-01'; }
+  // inicio da semana corrente (domingo->hoje, igual "Esta semana" do Gerenciador)
+  function startOfWeek(ds) { var p = ds.split('-'); var dt = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2])); dt.setUTCDate(dt.getUTCDate() - dt.getUTCDay()); return dt.toISOString().slice(0, 10); }
   function clampD(ds) { return ds < minDate ? minDate : (ds > maxDate ? maxDate : ds); }
 
   var STATE = {
@@ -958,6 +960,7 @@
         if (p === 'all') return setPeriod(minDate, maxDate, 'all');
         if (p === 'today') return setPeriod(maxDate, maxDate, 'today');
         if (p === 'yesterday') { var y = dayAdd(maxDate, -1); return setPeriod(y, y, 'yesterday'); }
+        if (p === 'week') return setPeriod(startOfWeek(maxDate), maxDate, 'week');
         if (p === 'month') return setPeriod(firstOfMonth(maxDate), maxDate, 'month');
         var n = +p; return setPeriod(dayAdd(maxDate, -(n - 1)), maxDate, p);
       };
