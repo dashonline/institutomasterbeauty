@@ -77,6 +77,11 @@ while ($next) {
 }
 Write-Host ("  paginas: {0} | linhas ad-dia: {1}" -f $page, $rows.Count)
 
+# TRAVA anti-dash-vazia: se a Meta devolver 0 linhas (soluco transitorio / rate-limit soft),
+# ABORTA o build -> o job falha, o deploy NAO roda, e o ultimo data.js bom continua no ar.
+# (Sem isso, um fetch vazio publicaria "Sem dados. Rode o build." por cima da dash boa.)
+if ($rows.Count -eq 0) { throw "Meta API retornou 0 linhas (provavel soluco transitorio). Abortando p/ nao publicar dash vazia." }
+
 # ---------------- AGREGACAO ----------------
 $grain = New-Object System.Collections.Generic.List[object]
 $dd = @{}   # date -> agregados do funil
