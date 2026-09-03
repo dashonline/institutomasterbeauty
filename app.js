@@ -590,23 +590,26 @@
   }
   function leadsListHTML(from, to) {
     var rows = leadsInPeriod(from, to);
+    var ansHead = LEADS_Q.map(function (q) { return '<th>' + q.ico + ' ' + esc(q.lab) + '</th>'; }).join('');
+    var ncols = 4 + LEADS_Q.length;   // #, nome, [uma coluna por resposta], data, whatsapp
     var body = rows.length ? rows.map(function (x, i) {
       var waNum = (x.phone || '').replace(/\D/g, '');
       var btn = waNum ? '<a class="wabtn" href="https://wa.me/' + esc(waNum) + '" target="_blank" rel="noopener">💬 WhatsApp</a>' : '<span class="rl-nowa">sem nº</span>';
-      var pills = LEADS_Q.map(function (q, qi) {
-        return '<span class="cpill" title="' + esc(q.lab) + '">' + q.ico + ' ' + esc(human(x.ans[qi])) + '</span>';
+      // cada resposta na SUA coluna (estilo planilha), como pill
+      var ansCells = LEADS_Q.map(function (q, qi) {
+        return '<td class="lead-ans"><span class="cpill">' + esc(human(x.ans[qi])) + '</span></td>';
       }).join('');
-      return '<tr><td class="rl-i">' + (i + 1) + '</td>' +
-        '<td class="rl-nm">' + esc(x.name || '—') + '<small>' + esc(x.phone || '') + '</small></td>' +
-        '<td class="rl-crit-cell"><div class="rl-crit">' + pills + '</div></td>' +
+      return '<tr><td class="lead-i">' + (i + 1) + '</td>' +
+        '<td class="lead-nm">' + esc(x.name || '—') + '<small>' + esc(x.phone || '') + '</small></td>' +
+        ansCells +
         '<td class="rl-d">' + brDate(x.day) + '</td>' +
         '<td class="rl-act">' + btn + '</td></tr>';
-    }).join('') : '<tr><td colspan="5" class="rl-empty">Nenhum lead no período.</td></tr>';
+    }).join('') : '<tr><td colspan="' + ncols + '" class="rl-empty">Nenhum lead no período.</td></tr>';
     var head = '<div class="rl-head">🔓 <b>Lista de leads</b> <span>— ' + int(rows.length) +
       ' no período, mais recentes no topo</span><button class="btn rl-hide" id="leadsHide">Ocultar</button></div>';
     return '<div class="rl-open">' + head +
-      '<div class="rl-scroll"><table class="rl-tbl"><thead><tr><th>#</th><th>Nome / WhatsApp</th><th>Respostas</th><th>Data</th><th></th></tr></thead><tbody>' +
-      body + '</tbody></table></div></div>';
+      '<div class="leads-scroll"><table class="leads-tbl"><thead><tr><th>#</th><th>Nome / WhatsApp</th>' + ansHead +
+      '<th>Data</th><th></th></tr></thead><tbody>' + body + '</tbody></table></div></div>';
   }
   function paintLeads() {
     var el = $('leadsBody'); if (!el) return;
