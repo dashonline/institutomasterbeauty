@@ -26,7 +26,9 @@ jobs:
         shell: powershell
         run: |
           New-Item -ItemType Directory -Force _site | Out-Null
-          Copy-Item index.html,ranking.html,app.js,styles.css,data.js _site\
+          New-Item -ItemType Directory -Force _site\leads | Out-Null
+          Copy-Item index.html,app.js,styles.css,data.js _site\
+          Copy-Item leads\index.html _site\leads\      # pagina do cliente em /leads (sem Trafego Pago)
           New-Item -ItemType File -Force _site\.nojekyll | Out-Null
       - uses: actions/upload-pages-artifact@v3
         with:
