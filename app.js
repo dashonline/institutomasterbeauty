@@ -352,6 +352,22 @@
   var rankListTab = 'casamento';   // sub-aba da lista protegida (casamento/corporativo)
   var rankTierFilter = 'all';      // filtro de faixa na lista (all/alta/media/baixa)
 
+  /* ---------------- LISTA DE LEADS (sem faixas — só contatos + respostas) ----------------
+     Leitura AO VIVO da planilha de forms via gviz CSV. Lista protegida por senha (PII).
+     Independente da maquina de faixas (RANK_*), que entra depois quando os criterios forem definidos. */
+  var LEADS_CFG = { id: '1YNPWQjD-Sd_7R1BsVi4TSr824t-l4J14b8ns1w98SgY', tab: 'Leads' };
+  var LEADS_PW = 'master';         // senha da lista (Leandro pode trocar)
+  // perguntas exibidas como pills (indice da coluna na aba Leads)
+  var LEADS_Q = [
+    { i: 12, ico: '🩺', lab: 'Profissão' },
+    { i: 13, ico: '💉', lab: 'Experiência c/ toxina' },
+    { i: 14, ico: '🎓', lab: 'Pós em estética' },
+    { i: 15, ico: '📅', lab: 'Quando fazer o curso' }
+  ];
+  var LEADS = { loaded: false, error: false, rows: [] };
+  var leadsUnlocked = false;
+  try { leadsUnlocked = sessionStorage.getItem('imb-leads') === '1'; } catch (e) { }
+
   function normTok(s) {
     return String(s == null ? '' : s).toLowerCase()
       .replace(/[áàâã]/g, 'a').replace(/[éèê]/g, 'e').replace(/[íì]/g, 'i')
@@ -539,6 +555,83 @@
     Array.prototype.forEach.call(el.querySelectorAll('[data-rltier]'), function (b) { b.onclick = function () { rankTierFilter = b.dataset.rltier; paintRanking(); }; });
   }
 
+  /* ---------------- LISTA DE LEADS (contatos + respostas, protegida por senha) ---------------- */
+  function parseLeadsCsv(text) {
+    var rows = parseCSV(text), out = [], seen = {};
+    for (var r = 1; r < rows.length; r++) {
+      var v = rows[r]; if (!v || v.length < 16) continue;
+      var id = v[0], created = v[1] || '';
+      if (!id || id === 'id' || created === 'created_time' || created.length < 10) continue;
+      var day = created.slice(0, 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
+      if (seen[id]) continue; seen[id] = 1;                       // dedupe por id
+      out.push({ id: id, day: day, name: (v[16] || '').trim(), phone: cleanPhone(v[17]),
+                 ans: LEADS_Q.map(function (q) { return (v[q.i] || '').trim(); }) });
+    }
+    return out;
+  }
+  function fetchLeads() {
+    var u = 'https://docs.google.com/spreadsheets/d/' + LEADS_CFG.id +
+      '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent(LEADS_CFG.tab);
+    fetch(u).then(function (r) { return r.text(); })
+      .then(function (t) { LEADS.rows = parseLeadsCsv(t); })
+      .catch(function () { LEADS.error = true; })
+      .then(function () { LEADS.loaded = true; if (STATE.tab === 'overview') paintLeads(); });
+  }
+  function leadsInPeriod(from, to) {
+    return LEADS.rows.filter(function (x) { return x.day >= from && x.day <= to; })
+      .sort(function (a, b) { return a.day < b.day ? 1 : a.day > b.day ? -1 : 0; });  // mais recente no topo
+  }
+  function leadsLockHTML() {
+    return '<div class="rank-lock">' +
+      '<div class="rl-head">🔒 <b>Lista de leads com contatos</b> <span>— protegida (contém nome e WhatsApp)</span></div>' +
+      '<div class="rl-form"><input type="password" id="leadsPw" placeholder="Senha" autocomplete="off">' +
+      '<button class="btn on" id="leadsGo">Ver lista</button></div>' +
+      '<div class="rl-err" id="leadsErr" hidden>Senha incorreta.</div></div>';
+  }
+  function leadsListHTML(from, to) {
+    var rows = leadsInPeriod(from, to);
+    var body = rows.length ? rows.map(function (x, i) {
+      var waNum = (x.phone || '').replace(/\D/g, '');
+      var btn = waNum ? '<a class="wabtn" href="https://wa.me/' + esc(waNum) + '" target="_blank" rel="noopener">💬 WhatsApp</a>' : '<span class="rl-nowa">sem nº</span>';
+      var pills = LEADS_Q.map(function (q, qi) {
+        return '<span class="cpill" title="' + esc(q.lab) + '">' + q.ico + ' ' + esc(human(x.ans[qi])) + '</span>';
+      }).join('');
+      return '<tr><td class="rl-i">' + (i + 1) + '</td>' +
+        '<td class="rl-nm">' + esc(x.name || '—') + '<small>' + esc(x.phone || '') + '</small></td>' +
+        '<td class="rl-crit-cell"><div class="rl-crit">' + pills + '</div></td>' +
+        '<td class="rl-d">' + brDate(x.day) + '</td>' +
+        '<td class="rl-act">' + btn + '</td></tr>';
+    }).join('') : '<tr><td colspan="5" class="rl-empty">Nenhum lead no período.</td></tr>';
+    var head = '<div class="rl-head">🔓 <b>Lista de leads</b> <span>— ' + int(rows.length) +
+      ' no período, mais recentes no topo</span><button class="btn rl-hide" id="leadsHide">Ocultar</button></div>';
+    return '<div class="rl-open">' + head +
+      '<div class="rl-scroll"><table class="rl-tbl"><thead><tr><th>#</th><th>Nome / WhatsApp</th><th>Respostas</th><th>Data</th><th></th></tr></thead><tbody>' +
+      body + '</tbody></table></div></div>';
+  }
+  function paintLeads() {
+    var el = $('leadsBody'); if (!el) return;
+    if (!LEADS.loaded) {
+      el.innerHTML = LEADS.error
+        ? '<div class="loading">Não foi possível carregar os leads.</div>'
+        : '<div class="loading">Carregando leads…</div>';
+      return;
+    }
+    var from = STATE.from, to = STATE.to;
+    el.innerHTML = '<div class="ranklist">' + (leadsUnlocked ? leadsListHTML(from, to) : leadsLockHTML()) + '</div>';
+    var go = $('leadsGo');
+    if (go) {
+      var tryUnlock = function () {
+        if ((($('leadsPw') && $('leadsPw').value) || '') === LEADS_PW) {
+          leadsUnlocked = true; try { sessionStorage.setItem('imb-leads', '1'); } catch (e) { } paintLeads();
+        } else { var er = $('leadsErr'); if (er) er.hidden = false; }
+      };
+      go.onclick = tryUnlock;
+      var pwi = $('leadsPw'); if (pwi) { pwi.onkeydown = function (e) { if (e.key === 'Enter') tryUnlock(); }; pwi.focus(); }
+    }
+    var hide = $('leadsHide');
+    if (hide) hide.onclick = function () { leadsUnlocked = false; try { sessionStorage.removeItem('imb-leads'); } catch (e) { } paintLeads(); };
+  }
+
   /* ================================================================ VISÃO GERAL */
   function renderOverview() {
     var from = STATE.from, to = STATE.to, len = diffDays(from, to) + 1;
@@ -593,12 +686,16 @@
       '<div class="panel"><h2>Resultados por dia</h2><p class="note">Barras = <b>Investimento c/ imposto</b> (esq., R$) · linha = <b>Leads</b> (dir., nº).</p><div class="legend" id="legA"></div><div id="chA"></div>' +
       '<h2 style="margin-top:20px">Leads × Mensagens × Custo/lead</h2><p class="note">Barras = <b>Leads</b> e <b>Mensagens</b> (esq., nº) · linha = <b>Custo por lead</b> (dir., R$).</p><div class="legend" id="legB"></div><div id="chB"></div></div>' +
       '</div>' +
+      '<div class="panel"><h2>Leads <span style="font-weight:500;color:var(--ink-3)">— contatos e respostas dos formulários, no período</span></h2>' +
+      '<p class="note">Lista protegida por senha (contém nome e WhatsApp). As respostas de cada lead aparecem ao lado.</p>' +
+      '<div id="leadsBody"></div></div>' +
       (CLIENT ? '' :
         '<div class="panel"><h2 id="metricTitle">Investimento por dia</h2><p class="note">Escolha a métrica pra ver a evolução dia a dia no período.</p><div class="tabs" id="metricTabs"></div><div class="legend" id="legend"></div><div id="chMetric"></div></div>' +
         '<div class="panel"><h2>Visão diária — principais métricas por dia</h2><p class="note">Uma linha por dia, mais recente no topo — role pra ver os demais dias. Heatmap por coluna: <b style="color:var(--good-text)">verde = melhor</b>, <b style="color:var(--critical)">vermelho = pior</b> no período.</p><div class="tblwrap daily-scroll"><table id="dtbl" class="daily"></table></div></div>');
 
     $('overviewView').innerHTML = overview;
     paintRanking();
+    paintLeads();
 
     renderFunnel(cur);
     var rows = dailyRows(from, to), pRows = dailyRows(pFrom, pTo);
@@ -993,5 +1090,5 @@
   var rt;
   addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(function () { if (daily.length) refresh(); }, 180); });
   if (!daily.length) { $('overviewView').innerHTML = '<div class="panel"><div class="loading">Sem dados. Rode o build.</div></div>'; }
-  else { shell(); fetchRanking(); }
+  else { shell(); fetchRanking(); fetchLeads(); }
 })();
