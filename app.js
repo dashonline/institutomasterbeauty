@@ -355,18 +355,28 @@
   /* ---------------- LISTA DE LEADS (sem faixas — só contatos + respostas) ----------------
      Leitura AO VIVO da planilha de forms via gviz CSV. Lista protegida por senha (PII).
      Independente da maquina de faixas (RANK_*), que entra depois quando os criterios forem definidos. */
-  var LEADS_CFG = { id: '1YNPWQjD-Sd_7R1BsVi4TSr824t-l4J14b8ns1w98SgY', tab: 'Leads' };
+  var LEADS_ID = '1YNPWQjD-Sd_7R1BsVi4TSr824t-l4J14b8ns1w98SgY';
   var LEADS_PW = 'master';         // senha da lista (Leandro pode trocar)
-  // perguntas exibidas como pills (indice da coluna na aba Leads)
-  var LEADS_Q = [
-    { i: 12, ico: '🩺', lab: 'Profissão' },
-    { i: 13, ico: '💉', lab: 'Experiência c/ toxina' },
-    { i: 14, ico: '🎓', lab: 'Pós em estética' },
-    { i: 15, ico: '📅', lab: 'Quando fazer o curso' }
+  // um form por aba da planilha; cada form tem colunas e perguntas proprias
+  // nc = coluna do nome · pc = coluna do telefone · q = perguntas (indice da coluna na aba)
+  var LEADS_FORMS = [
+    { key: 'fullface', tab: 'Leads', label: 'Full Face', nc: 16, pc: 17, q: [
+      { i: 12, ico: '🩺', lab: 'Profissão' },
+      { i: 13, ico: '💉', lab: 'Experiência c/ toxina' },
+      { i: 14, ico: '🎓', lab: 'Pós em estética' },
+      { i: 15, ico: '📅', lab: 'Quando fazer o curso' }
+    ] },
+    { key: 'pcte', tab: 'Formulário pcte modelo FF', label: 'Paciente modelo', nc: 15, pc: 17, q: [
+      { i: 12, ico: '✨', lab: 'Já fez procedimento?' },
+      { i: 13, ico: '📅', lab: 'Quando pretende fazer' },
+      { i: 14, ico: '🎂', lab: 'Idade' }
+    ] }
   ];
-  var LEADS = { loaded: false, error: false, rows: [] };
+  var LEADS = { loaded: 0, error: false, rows: {} };   // rows[formKey] = [...]
+  var leadsFormTab = LEADS_FORMS[0].key;               // sub-aba selecionada na lista
   var leadsUnlocked = false;
   try { leadsUnlocked = sessionStorage.getItem('imb-leads') === '1'; } catch (e) { }
+  function leadsForm(key) { for (var i = 0; i < LEADS_FORMS.length; i++) if (LEADS_FORMS[i].key === key) return LEADS_FORMS[i]; return LEADS_FORMS[0]; }
 
   function normTok(s) {
     return String(s == null ? '' : s).toLowerCase()
@@ -556,29 +566,31 @@
   }
 
   /* ---------------- LISTA DE LEADS (contatos + respostas, protegida por senha) ---------------- */
-  function parseLeadsCsv(text) {
-    var rows = parseCSV(text), out = [], seen = {};
+  function parseLeadsCsv(form, text) {
+    var rows = parseCSV(text), out = [], seen = {}, minLen = form.nc + 1;
     for (var r = 1; r < rows.length; r++) {
-      var v = rows[r]; if (!v || v.length < 16) continue;
+      var v = rows[r]; if (!v || v.length < minLen) continue;
       var id = v[0], created = v[1] || '';
       if (!id || id === 'id' || created === 'created_time' || created.length < 10) continue;
       var day = created.slice(0, 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
       if (seen[id]) continue; seen[id] = 1;                       // dedupe por id
-      out.push({ id: id, day: day, name: (v[16] || '').trim(), phone: cleanPhone(v[17]),
-                 ans: LEADS_Q.map(function (q) { return (v[q.i] || '').trim(); }) });
+      out.push({ id: id, day: day, name: (v[form.nc] || '').trim(), phone: cleanPhone(v[form.pc]),
+                 ans: form.q.map(function (q) { return (v[q.i] || '').trim(); }) });
     }
     return out;
   }
   function fetchLeads() {
-    var u = 'https://docs.google.com/spreadsheets/d/' + LEADS_CFG.id +
-      '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent(LEADS_CFG.tab);
-    fetch(u).then(function (r) { return r.text(); })
-      .then(function (t) { LEADS.rows = parseLeadsCsv(t); })
-      .catch(function () { LEADS.error = true; })
-      .then(function () { LEADS.loaded = true; if (STATE.tab === 'overview') paintLeads(); });
+    LEADS_FORMS.forEach(function (form) {
+      var u = 'https://docs.google.com/spreadsheets/d/' + LEADS_ID +
+        '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent(form.tab);
+      fetch(u).then(function (r) { return r.text(); })
+        .then(function (t) { LEADS.rows[form.key] = parseLeadsCsv(form, t); })
+        .catch(function () { LEADS.error = true; })
+        .then(function () { if (++LEADS.loaded >= LEADS_FORMS.length && STATE.tab === 'overview') paintLeads(); });
+    });
   }
-  function leadsInPeriod(from, to) {
-    return LEADS.rows.filter(function (x) { return x.day >= from && x.day <= to; })
+  function leadsInPeriod(key, from, to) {
+    return (LEADS.rows[key] || []).filter(function (x) { return x.day >= from && x.day <= to; })
       .sort(function (a, b) { return a.day < b.day ? 1 : a.day > b.day ? -1 : 0; });  // mais recente no topo
   }
   function leadsLockHTML() {
@@ -589,15 +601,23 @@
       '<div class="rl-err" id="leadsErr" hidden>Senha incorreta.</div></div>';
   }
   function leadsListHTML(from, to) {
-    var rows = leadsInPeriod(from, to);
-    var ansHead = LEADS_Q.map(function (q) { return '<th>' + q.ico + ' ' + esc(q.lab) + '</th>'; }).join('');
-    var ncols = 4 + LEADS_Q.length;   // #, nome, [uma coluna por resposta], data, whatsapp
+    var counts = {}, total = 0;
+    LEADS_FORMS.forEach(function (f) { counts[f.key] = leadsInPeriod(f.key, from, to).length; total += counts[f.key]; });
+    // sub-abas: um formulario por aba (Full Face / Paciente modelo)
+    var subtabs = LEADS_FORMS.map(function (f) {
+      return '<button class="rl-tabbtn' + (f.key === leadsFormTab ? ' on' : '') + '" data-ldtab="' + f.key + '">' +
+        esc(f.label) + ' <span>' + int(counts[f.key]) + '</span></button>';
+    }).join('');
+    var form = leadsForm(leadsFormTab);
+    var rows = leadsInPeriod(leadsFormTab, from, to);
+    var ansHead = form.q.map(function (q) { return '<th>' + q.ico + ' ' + esc(q.lab) + '</th>'; }).join('');
+    var ncols = 4 + form.q.length;   // #, nome, [uma coluna por resposta], data, whatsapp
     var body = rows.length ? rows.map(function (x, i) {
       var waNum = (x.phone || '').replace(/\D/g, '');
       var btn = waNum ? '<a class="wabtn" href="https://wa.me/' + esc(waNum) + '" target="_blank" rel="noopener">💬 WhatsApp</a>' : '<span class="rl-nowa">sem nº</span>';
       // cada resposta na SUA coluna (estilo planilha), como pill
-      var ansCells = LEADS_Q.map(function (q, qi) {
-        return '<td class="lead-ans"><span class="cpill">' + esc(human(x.ans[qi])) + '</span></td>';
+      var ansCells = x.ans.map(function (a) {
+        return '<td class="lead-ans"><span class="cpill">' + esc(human(a)) + '</span></td>';
       }).join('');
       return '<tr><td class="lead-i">' + (i + 1) + '</td>' +
         '<td class="lead-nm">' + esc(x.name || '—') + '<small>' + esc(x.phone || '') + '</small></td>' +
@@ -605,15 +625,16 @@
         '<td class="rl-d">' + brDate(x.day) + '</td>' +
         '<td class="rl-act">' + btn + '</td></tr>';
     }).join('') : '<tr><td colspan="' + ncols + '" class="rl-empty">Nenhum lead no período.</td></tr>';
-    var head = '<div class="rl-head">🔓 <b>Lista de leads</b> <span>— ' + int(rows.length) +
+    var head = '<div class="rl-head">🔓 <b>Lista de leads</b> <span>— ' + int(total) +
       ' no período, mais recentes no topo</span><button class="btn rl-hide" id="leadsHide">Ocultar</button></div>';
     return '<div class="rl-open">' + head +
+      '<div class="rl-subtabs">' + subtabs + '</div>' +
       '<div class="leads-scroll"><table class="leads-tbl"><thead><tr><th>#</th><th>Nome / WhatsApp</th>' + ansHead +
       '<th>Data</th><th></th></tr></thead><tbody>' + body + '</tbody></table></div></div>';
   }
   function paintLeads() {
     var el = $('leadsBody'); if (!el) return;
-    if (!LEADS.loaded) {
+    if (LEADS.loaded < LEADS_FORMS.length) {
       el.innerHTML = LEADS.error
         ? '<div class="loading">Não foi possível carregar os leads.</div>'
         : '<div class="loading">Carregando leads…</div>';
@@ -633,6 +654,8 @@
     }
     var hide = $('leadsHide');
     if (hide) hide.onclick = function () { leadsUnlocked = false; try { sessionStorage.removeItem('imb-leads'); } catch (e) { } paintLeads(); };
+    // troca de sub-aba (Full Face / Paciente modelo)
+    Array.prototype.forEach.call(el.querySelectorAll('[data-ldtab]'), function (b) { b.onclick = function () { leadsFormTab = b.dataset.ldtab; paintLeads(); }; });
   }
 
   /* ================================================================ VISÃO GERAL */
