@@ -370,6 +370,12 @@
       { i: 12, ico: '✨', lab: 'Já fez procedimento?' },
       { i: 13, ico: '📅', lab: 'Quando pretende fazer' },
       { i: 14, ico: '🎂', lab: 'Idade' }
+    ] },
+    { key: 'fullbody', tab: 'Full Body', label: 'Full Body', nc: 16, pc: 17, q: [
+      { i: 12, ico: '🩺', lab: 'Profissão' },
+      { i: 13, ico: '✅', lab: 'Habilitado p/ corporais' },
+      { i: 14, ico: '🎓', lab: 'Pós em estética' },
+      { i: 15, ico: '📅', lab: 'Quando fazer o curso' }
     ] }
   ];
   var LEADS = { loaded: 0, error: false, rows: {} };   // rows[formKey] = [...]
