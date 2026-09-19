@@ -708,16 +708,22 @@
       '<div class="panel"><h2>Ranking de leads qualificados <span style="font-weight:500;color:var(--ink-3)">— dos formulários, no período</span></h2>' +
       '<div id="rankBody"></div></div>';
 
-    var overview =
+    // No modo cliente (/leads) mostramos SO a lista de leads — sem gasto/CPL, funil ou graficos de midia.
+    var trafficHTML =
       '<div class="panel"><div class="health" id="health">' + healthHTML + '</div></div>' +
       '<div class="hero" id="hero">' + heroHTML + '</div>' +
-      '<p class="hero-line" style="margin-bottom:10px">' + heroLine + '</p>' +
-      rankPanel +
+      '<p class="hero-line" style="margin-bottom:10px">' + heroLine + '</p>';
+    var funnelHTML =
       '<div class="grid-funnel">' +
       '<div class="panel"><h2>Funil completo</h2><p class="note">Investimento → Impressões → Cliques → Leads. Cada etapa mostra o <b>volume</b> e, à direita, o <b>custo</b> e a <b>taxa de passagem</b>.</p><div class="funnel" id="funnel"></div></div>' +
       '<div class="panel"><h2>Resultados por dia</h2><p class="note">Barras = <b>Investimento c/ imposto</b> (esq., R$) · linha = <b>Leads</b> (dir., nº).</p><div class="legend" id="legA"></div><div id="chA"></div>' +
       '<h2 style="margin-top:20px">Leads × Mensagens × Custo/lead</h2><p class="note">Barras = <b>Leads</b> e <b>Mensagens</b> (esq., nº) · linha = <b>Custo por lead</b> (dir., R$).</p><div class="legend" id="legB"></div><div id="chB"></div></div>' +
-      '</div>' +
+      '</div>';
+
+    var overview =
+      (CLIENT ? '' : trafficHTML) +
+      rankPanel +
+      (CLIENT ? '' : funnelHTML) +
       '<div class="panel"><h2>Leads <span style="font-weight:500;color:var(--ink-3)">— contatos e respostas dos formulários, no período</span></h2>' +
       '<p class="note">Lista protegida por senha (contém nome e WhatsApp). As respostas de cada lead aparecem ao lado.</p>' +
       '<div id="leadsBody"></div></div>' +
@@ -729,15 +735,16 @@
     paintRanking();
     paintLeads();
 
-    renderFunnel(cur);
     var rows = dailyRows(from, to), pRows = dailyRows(pFrom, pTo);
-    comboChart($('chA'), rows, { bars: [{ key: 'spend', color: 'var(--critical)', name: 'Investimento c/ imposto' }], line: { key: 'lead', color: 'var(--good)', name: 'Leads' }, leftFmt: M.money0, rightFmt: M.int, lineFmt: M.int });
-    comboChart($('chB'), rows, { bars: [{ key: 'lead', color: 'var(--good)', name: 'Leads' }, { key: 'msg', color: 'var(--series-2)', name: 'Mensagens' }], line: { key: 'cpl', color: 'var(--ink-1)', name: 'Custo/lead' }, leftFmt: M.int, rightFmt: M.money0, lineFmt: M.money });
-    var lgSq = function (c) { return '<i style="background:' + c + '"></i>'; }, lgLn = function (c) { return '<i style="width:15px;height:0;border-top:2px solid ' + c + ';border-radius:0"></i>'; };
-    $('legA').innerHTML = '<span>' + lgSq('var(--critical)') + '<span style="color:var(--ink-2)">Investimento c/ imposto</span></span><span>' + lgLn('var(--good)') + '<span style="color:var(--ink-2)">Leads (eixo dir.)</span></span>';
-    $('legB').innerHTML = '<span>' + lgSq('var(--good)') + '<span style="color:var(--ink-2)">Leads</span></span><span>' + lgSq('var(--series-2)') + '<span style="color:var(--ink-2)">Mensagens</span></span><span>' + lgLn('var(--ink-1)') + '<span style="color:var(--ink-2)">Custo/lead (eixo dir.)</span></span>';
 
     if (!CLIENT) {
+      renderFunnel(cur);
+      comboChart($('chA'), rows, { bars: [{ key: 'spend', color: 'var(--critical)', name: 'Investimento c/ imposto' }], line: { key: 'lead', color: 'var(--good)', name: 'Leads' }, leftFmt: M.money0, rightFmt: M.int, lineFmt: M.int });
+      comboChart($('chB'), rows, { bars: [{ key: 'lead', color: 'var(--good)', name: 'Leads' }, { key: 'msg', color: 'var(--series-2)', name: 'Mensagens' }], line: { key: 'cpl', color: 'var(--ink-1)', name: 'Custo/lead' }, leftFmt: M.int, rightFmt: M.money0, lineFmt: M.money });
+      var lgSq = function (c) { return '<i style="background:' + c + '"></i>'; }, lgLn = function (c) { return '<i style="width:15px;height:0;border-top:2px solid ' + c + ';border-radius:0"></i>'; };
+      $('legA').innerHTML = '<span>' + lgSq('var(--critical)') + '<span style="color:var(--ink-2)">Investimento c/ imposto</span></span><span>' + lgLn('var(--good)') + '<span style="color:var(--ink-2)">Leads (eixo dir.)</span></span>';
+      $('legB').innerHTML = '<span>' + lgSq('var(--good)') + '<span style="color:var(--ink-2)">Leads</span></span><span>' + lgSq('var(--series-2)') + '<span style="color:var(--ink-2)">Mensagens</span></span><span>' + lgLn('var(--ink-1)') + '<span style="color:var(--ink-2)">Custo/lead (eixo dir.)</span></span>';
+
       var METRICS = [
         { k: 'spend', label: 'Investimento', fmt: M.money0 }, { k: 'lead', label: 'Leads', fmt: M.int },
         { k: 'msg', label: 'Mensagens', fmt: M.int }, { k: 'cpl', label: 'Custo/lead', fmt: M.money },
@@ -1077,11 +1084,12 @@
     var totalSpend = daily.reduce(function (s, r) { return s + r.spend; }, 0);
     var totLead = daily.reduce(function (s, r) { return s + r.lead; }, 0);
     var totMsg = daily.reduce(function (s, r) { return s + r.msg; }, 0);
-    $('footer').innerHTML =
-      'Gasto total do período completo: ' + money(totalSpend) + ' (já com imposto ×' + taxStr(TAX) + '). ' +
+    $('footer').innerHTML = CLIENT ?
+      ('<b>Leads</b> dos formulários · leitura ao vivo · atualiza automaticamente. Contém nome e WhatsApp — protegido por senha. Somente leitura.') :
+      ('Gasto total do período completo: ' + money(totalSpend) + ' (já com imposto ×' + taxStr(TAX) + '). ' +
       'Fonte: <b>Meta Graph API</b> (insights nível anúncio) · conta <code>' + esc(m.account || '') + '</code>. ' +
       '<b>Leads</b> = formulário (Lead Ads, ' + int(totLead) + ' no total) · <b>Mensagens</b> = 1ª resposta em conversa (' + int(totMsg) + '). ' +
-      'CTR sempre de <b>link</b>. Somente leitura.';
+      'CTR sempre de <b>link</b>. Somente leitura.');
 
     Array.prototype.forEach.call(document.querySelectorAll('[data-preset]'), function (b) {
       b.onclick = function () {
