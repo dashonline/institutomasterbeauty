@@ -61,7 +61,10 @@ $fields = "campaign_name,adset_name,ad_name,impressions,reach,clicks,inline_link
 $tr = '{"since":"' + $START + '","until":"' + $today + '"}'
 # Filtra na FONTE so as campanhas IMB (a conta tem ~130 campanhas antigas; puxar todos os anuncios
 # x dia x 5 meses estoura a API com "unknown error" subcode 99). CONTAIN "IMB |" corta o volume.
-$filter = '[{"field":"campaign.name","operator":"CONTAIN","value":"IMB |"}]'
+# + ad.effective_status com TODOS os status: sem isso a API (level=ad) OMITE anuncios apagados/arquivados
+# e o gasto deles some da dash (achado em 23/09/2026 na dash da Clinica: R$52,62 faltando).
+$filter = '[{"field":"campaign.name","operator":"CONTAIN","value":"IMB |"},' +
+  '{"field":"ad.effective_status","operator":"IN","value":["ACTIVE","PAUSED","DELETED","ARCHIVED","CAMPAIGN_PAUSED","ADSET_PAUSED","DISAPPROVED","WITH_ISSUES","IN_PROCESS","PENDING_REVIEW","PREAPPROVED","PENDING_BILLING_INFO"]}]'
 $filterEnc = [uri]::EscapeDataString($filter)
 $url = "https://graph.facebook.com/$API_VER/$ACCOUNT/insights"
 $qs  = "?level=ad&time_increment=1&limit=500&fields=$fields&time_range=$tr&filtering=$filterEnc&access_token=$TOKEN"
