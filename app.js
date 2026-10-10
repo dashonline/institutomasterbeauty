@@ -359,25 +359,26 @@
   var LEADS_PW = 'master';         // senha da lista (Leandro pode trocar)
   // um form por aba da planilha; cada form tem colunas e perguntas proprias
   // nc = coluna do nome · pc = coluna do telefone · q = perguntas (indice da coluna na aba)
+  // gid = ID fixo da aba (não muda ao renomear). tab = só referência.
   var LEADS_FORMS = [
-    { key: 'fullface', tab: 'Leads', label: 'Full Face', nc: 16, pc: 17, q: [
+    { key: 'fullface', tab: 'Leads', gid: 0, label: 'Full Face', nc: 16, pc: 17, q: [
       { i: 12, ico: '🩺', lab: 'Profissão' },
       { i: 13, ico: '💉', lab: 'Experiência c/ toxina' },
       { i: 14, ico: '🎓', lab: 'Pós em estética' },
       { i: 15, ico: '📅', lab: 'Quando fazer o curso' }
     ] },
-    { key: 'pcte', tab: 'Formulário pcte modelo FF', label: 'Paciente modelo', nc: 15, pc: 17, q: [
+    { key: 'pcte', tab: 'Formulário pcte modelo FF', gid: 145768169, label: 'Paciente modelo', nc: 15, pc: 17, q: [
       { i: 12, ico: '✨', lab: 'Já fez procedimento?' },
       { i: 13, ico: '📅', lab: 'Quando pretende fazer' },
       { i: 14, ico: '🎂', lab: 'Idade' }
     ] },
-    { key: 'fullbody', tab: 'Full Body', label: 'Full Body', nc: 16, pc: 17, q: [
+    { key: 'fullbody', tab: 'Full Body', gid: 1046142098, label: 'Full Body', nc: 16, pc: 17, q: [
       { i: 12, ico: '🩺', lab: 'Profissão' },
       { i: 13, ico: '✅', lab: 'Habilitado p/ corporais' },
       { i: 14, ico: '🎓', lab: 'Pós em estética' },
       { i: 15, ico: '📅', lab: 'Quando fazer o curso' }
     ] },
-    { key: 'endolaser', tab: 'Endolaser', label: 'Endolaser', nc: 15, pc: 16, q: [
+    { key: 'endolaser', tab: 'Endolaser', gid: 2138811750, label: 'Endolaser', nc: 15, pc: 16, q: [
       { i: 12, ico: '🩺', lab: 'Profissão' },
       { i: 13, ico: '🏥', lab: 'Já possui clínica' },
       { i: 14, ico: '🎓', lab: 'Pós em estética' }
@@ -593,7 +594,7 @@
   function fetchLeads() {
     LEADS_FORMS.forEach(function (form) {
       var u = 'https://docs.google.com/spreadsheets/d/' + LEADS_ID +
-        '/gviz/tq?tqx=out:csv&sheet=' + encodeURIComponent(form.tab);
+        '/gviz/tq?tqx=out:csv&gid=' + form.gid;   // por gid: renomear a aba não quebra
       fetch(u).then(function (r) { return r.text(); })
         .then(function (t) { LEADS.rows[form.key] = parseLeadsCsv(form, t); })
         .catch(function () { LEADS.error = true; })
