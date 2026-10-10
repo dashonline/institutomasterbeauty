@@ -376,6 +376,11 @@
       { i: 13, ico: '✅', lab: 'Habilitado p/ corporais' },
       { i: 14, ico: '🎓', lab: 'Pós em estética' },
       { i: 15, ico: '📅', lab: 'Quando fazer o curso' }
+    ] },
+    { key: 'endolaser', tab: 'Endolaser', label: 'Endolaser', nc: 15, pc: 16, q: [
+      { i: 12, ico: '🩺', lab: 'Profissão' },
+      { i: 13, ico: '🏥', lab: 'Já possui clínica' },
+      { i: 14, ico: '🎓', lab: 'Pós em estética' }
     ] }
   ];
   var LEADS = { loaded: 0, error: false, rows: {} };   // rows[formKey] = [...]
