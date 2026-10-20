@@ -357,7 +357,8 @@
      Leitura AO VIVO da planilha de forms via gviz CSV. Lista protegida por senha (PII).
      Independente da maquina de faixas (RANK_*), que entra depois quando os criterios forem definidos. */
   var LEADS_ID = '1YNPWQjD-Sd_7R1BsVi4TSr824t-l4J14b8ns1w98SgY';
-  var LEADS_PW = 'master';         // senha da lista (Leandro pode trocar)
+  var LEADS_PW = CRC ? 'CRC' : 'master';   // senha da lista (Leandro pode trocar) · /crc tem senha própria
+  var LEADS_SS = CRC ? 'imb-leads-crc' : 'imb-leads';   // chave de sessão separada: destravar um não destrava o outro
   // um form por aba da planilha; cada form tem colunas e perguntas proprias
   // nc = coluna do nome · pc = coluna do telefone · q = perguntas (indice da coluna na aba)
   // gid = ID fixo da aba (não muda ao renomear). tab = só referência.
@@ -389,7 +390,7 @@
   var LEADS = { loaded: 0, error: false, rows: {} };   // rows[formKey] = [...]
   var leadsFormTab = LEADS_FORMS[0].key;               // sub-aba selecionada na lista
   var leadsUnlocked = false;
-  try { leadsUnlocked = sessionStorage.getItem('imb-leads') === '1'; } catch (e) { }
+  try { leadsUnlocked = sessionStorage.getItem(LEADS_SS) === '1'; } catch (e) { }
   function leadsForm(key) { for (var i = 0; i < LEADS_FORMS.length; i++) if (LEADS_FORMS[i].key === key) return LEADS_FORMS[i]; return LEADS_FORMS[0]; }
 
   function normTok(s) {
@@ -660,14 +661,14 @@
     if (go) {
       var tryUnlock = function () {
         if ((($('leadsPw') && $('leadsPw').value) || '') === LEADS_PW) {
-          leadsUnlocked = true; try { sessionStorage.setItem('imb-leads', '1'); } catch (e) { } paintLeads();
+          leadsUnlocked = true; try { sessionStorage.setItem(LEADS_SS, '1'); } catch (e) { } paintLeads();
         } else { var er = $('leadsErr'); if (er) er.hidden = false; }
       };
       go.onclick = tryUnlock;
       var pwi = $('leadsPw'); if (pwi) { pwi.onkeydown = function (e) { if (e.key === 'Enter') tryUnlock(); }; pwi.focus(); }
     }
     var hide = $('leadsHide');
-    if (hide) hide.onclick = function () { leadsUnlocked = false; try { sessionStorage.removeItem('imb-leads'); } catch (e) { } paintLeads(); };
+    if (hide) hide.onclick = function () { leadsUnlocked = false; try { sessionStorage.removeItem(LEADS_SS); } catch (e) { } paintLeads(); };
     // troca de sub-aba (Full Face / Paciente modelo)
     Array.prototype.forEach.call(el.querySelectorAll('[data-ldtab]'), function (b) { b.onclick = function () { leadsFormTab = b.dataset.ldtab; paintLeads(); }; });
   }
