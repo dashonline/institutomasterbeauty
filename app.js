@@ -594,7 +594,7 @@
   function fetchLeads() {
     LEADS_FORMS.forEach(function (form) {
       var u = 'https://docs.google.com/spreadsheets/d/' + LEADS_ID +
-        '/gviz/tq?tqx=out:csv&gid=' + form.gid;   // por gid: renomear a aba não quebra
+        '/gviz/tq?tqx=out:csv&headers=1&gid=' + form.gid;   // por gid: renomear a aba não quebra · headers=1: senão o gviz "adivinha" e engole leads no cabeçalho
       fetch(u).then(function (r) { return r.text(); })
         .then(function (t) { LEADS.rows[form.key] = parseLeadsCsv(form, t); })
         .catch(function () { LEADS.error = true; })
