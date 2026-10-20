@@ -10,6 +10,7 @@
   "use strict";
   var D = window.DASH || {};
   var CLIENT = !!window.__CLIENT__;   // página do cliente (ranking.html): Visão Geral enxuta, sem aba Tráfego
+  var CRC = !!window.__CRC__;         // /crc (equipe comercial): só a lista do Paciente modelo
   var arr = function (x) { return Array.isArray(x) ? x : (x ? [x] : []); };
   var daily = arr(D.daily).slice().sort(function (a, b) { return a.d < b.d ? -1 : a.d > b.d ? 1 : 0; });
   var grain = arr(D.grain);
@@ -384,6 +385,7 @@
       { i: 14, ico: '🎓', lab: 'Pós em estética' }
     ] }
   ];
+  if (CRC) LEADS_FORMS = LEADS_FORMS.filter(function (f) { return f.key === 'pcte'; });
   var LEADS = { loaded: 0, error: false, rows: {} };   // rows[formKey] = [...]
   var leadsFormTab = LEADS_FORMS[0].key;               // sub-aba selecionada na lista
   var leadsUnlocked = false;
@@ -1082,7 +1084,7 @@
 
   function shell() {
     var m = D;
-    $('subtitle').innerHTML = '<b>Funil de captação</b> · leads de formulário + mensagens · dados de ' + brFull(minDate) + ' a ' + brFull(maxDate) + ' · ' + int(daily.length) + ' dias com registro';
+    $('subtitle').innerHTML = CRC ? '<b>Leads de paciente modelo</b> · formulário do Meta · leitura ao vivo da planilha' : '<b>Funil de captação</b> · leads de formulário + mensagens · dados de ' + brFull(minDate) + ' a ' + brFull(maxDate) + ' · ' + int(daily.length) + ' dias com registro';
     $('updated').textContent = 'atualizado ' + esc(m.generatedAt || '—') + ' ' + esc(m.tz || 'BRT');
     $('taxBadge').textContent = TAX === 1 ? 'sem imposto' : 'imposto ×' + taxStr(TAX);
     $('from').min = $('to').min = minDate; $('from').max = $('to').max = maxDate;
@@ -1090,7 +1092,9 @@
     var totalSpend = daily.reduce(function (s, r) { return s + r.spend; }, 0);
     var totLead = daily.reduce(function (s, r) { return s + r.lead; }, 0);
     var totMsg = daily.reduce(function (s, r) { return s + r.msg; }, 0);
-    $('footer').innerHTML = CLIENT ?
+    $('footer').innerHTML = CRC ?
+      ('<b>Leads de paciente modelo</b> · leitura ao vivo da planilha · atualiza automaticamente. Contém nome e WhatsApp — protegido por senha. Pra exportar, use o botão <b>📄 Abrir planilha de leads</b>.') :
+      CLIENT ?
       ('<b>Leads</b> dos formulários · leitura ao vivo · atualiza automaticamente. Contém nome e WhatsApp — protegido por senha. Somente leitura.') :
       ('Gasto total do período completo: ' + money(totalSpend) + ' (já com imposto ×' + taxStr(TAX) + '). ' +
       'Fonte: <b>Meta Graph API</b> (insights nível anúncio) · conta <code>' + esc(m.account || '') + '</code>. ' +
