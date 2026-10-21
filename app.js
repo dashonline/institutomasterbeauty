@@ -583,7 +583,9 @@
   /* ---------------- LISTA DE LEADS (contatos + respostas, protegida por senha) ---------------- */
   function parseLeadsCsv(form, text) {
     var rows = parseCSV(text), out = [], seen = {}, minLen = form.nc + 1;
-    for (var r = 1; r < rows.length; r++) {
+    // começa em 0: se o Meta empurrar o cabeçalho pra baixo (lead novo na linha 1), o 1º lead não se perde;
+    // a linha de cabeçalho (id/created_time) cai no filtro abaixo
+    for (var r = 0; r < rows.length; r++) {
       var v = rows[r]; if (!v || v.length < minLen) continue;
       var id = v[0], created = v[1] || '';
       if (!id || id === 'id' || created === 'created_time' || created.length < 10) continue;
