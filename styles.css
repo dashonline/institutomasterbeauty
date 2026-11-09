@@ -380,3 +380,12 @@ footer code{background:var(--plane);border-radius:4px;padding:1px 5px;font-size:
 .daily-scroll table.daily thead th{position:sticky;top:0;background:var(--card);z-index:1}
 /* otimização: ~5 campanhas + rolagem vertical, cabeçalho fixo (th já é sticky global) */
 .tree-scroll{max-height:300px;overflow-y:auto}
+
+/* fechamento por curso */
+table.cursos{min-width:560px}
+table.cursos th:not(:first-child),table.cursos td:not(:first-child){text-align:right;white-space:nowrap}
+table.cursos small{color:var(--ink-3);font-weight:500;font-size:11px}
+table.cursos .cs-nm{font-weight:600;color:var(--ink-1)}
+table.cursos .cs-tp{margin-left:8px;font-size:10.5px;font-weight:650;padding:1px 7px;border-radius:999px;vertical-align:middle}
+table.cursos .cs-tp.lead{background:color-mix(in srgb,var(--brand) 18%,transparent);color:var(--brand)}
+table.cursos .cs-tp.msg{background:color-mix(in srgb,var(--series-2) 18%,transparent);color:var(--series-2)}

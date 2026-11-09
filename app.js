@@ -676,6 +676,35 @@
   }
 
   /* ================================================================ VISÃO GERAL */
+  /* ---------------------------------------------------------------- fechamento por curso (1 campanha = 1 curso) */
+  function cursoOf(camp) { var p = String(camp || '').split('|'); return (p[p.length - 1] || camp).trim() || camp; }
+  function cursosHTML(from, to) {
+    var map = {};
+    for (var i = 0; i < grain.length; i++) {
+      var g = grain[i]; if (!within(g.d, from, to)) continue; if (!campOK(g.camp)) continue;
+      var isM = funnelOf(g.camp) === 'Mensagens', ck = cursoOf(g.camp).toLowerCase() + (isM ? '|m' : '|l');
+      var o = map[ck] || (map[ck] = { camp: g.camp, nome: cursoOf(g.camp), isMsg: isM, n: {}, spend: 0, lead: 0, msg: 0 });
+      o.n[g.camp] = 1;
+      o.spend += g.spend; o.lead += g.lead; o.msg += g.msg;
+    }
+    var rows = Object.keys(map).map(function (k) { return map[k]; }).filter(function (r) { return r.spend > 0 || r.lead > 0 || r.msg > 0; })
+      .sort(function (a, b) { return b.spend - a.spend; });
+    if (!rows.length) return '<p class="note" style="margin:0">Nenhuma campanha com gasto no período.</p>';
+    var tot = { spend: 0, lead: 0, msg: 0 };
+    var body = rows.map(function (r) {
+      tot.spend += r.spend; tot.lead += r.lead; tot.msg += r.msg;
+      var isMsg = r.isMsg;
+      var res = isMsg ? int(r.msg) + ' <small>msgs</small>' : int(r.lead);
+      var cpr = isMsg ? M.money(div(r.spend, r.msg)) + ' <small>/msg</small>' : M.money(div(r.spend, r.lead));
+      return '<tr title="' + esc(Object.keys(r.n).join(' · ')) + '"><td><span class="cs-nm">' + esc(r.nome) + '</span>' +
+        '<span class="cs-tp ' + (isMsg ? 'msg' : 'lead') + '">' + (isMsg ? 'mensagem' : 'formulário') + '</span></td>' +
+        '<td>' + M.money(r.spend) + '</td><td>' + res + '</td><td>' + cpr + '</td></tr>';
+    }).join('');
+    var foot = '<tr><td>Total — ' + rows.length + ' curso(s)</td><td>' + M.money(tot.spend) + '</td><td>' + int(tot.lead) + '</td><td>' + M.money(div(tot.spend, tot.lead)) + '</td></tr>';
+    return '<div class="tblwrap"><table class="cursos"><thead><tr><th>Curso</th><th>Investimento <small>c/ imposto</small></th><th>Leads</th><th>Custo por lead</th></tr></thead>' +
+      '<tbody>' + body + '</tbody><tfoot>' + foot + '</tfoot></table></div>';
+  }
+
   function renderOverview() {
     var from = STATE.from, to = STATE.to, len = diffDays(from, to) + 1;
     var pTo = dayAdd(from, -1), pFrom = dayAdd(pTo, -(len - 1));
@@ -723,7 +752,10 @@
     var trafficHTML =
       '<div class="panel"><div class="health" id="health">' + healthHTML + '</div></div>' +
       '<div class="hero" id="hero">' + heroHTML + '</div>' +
-      '<p class="hero-line" style="margin-bottom:10px">' + heroLine + '</p>';
+      '<p class="hero-line" style="margin-bottom:10px">' + heroLine + '</p>' +
+      '<div class="panel"><h2>Fechamento por curso <span style="font-weight:500;color:var(--ink-3)">— cada campanha é um curso, no período</span></h2>' +
+      '<p class="note">Investimento já <b>com imposto</b>. Campanhas de mensagem mostram o nº de mensagens e o custo por mensagem.</p>' +
+      cursosHTML(from, to) + '</div>';
     var funnelHTML =
       '<div class="grid-funnel">' +
       '<div class="panel"><h2>Funil completo</h2><p class="note">Investimento → Impressões → Cliques → Leads. Cada etapa mostra o <b>volume</b> e, à direita, o <b>custo</b> e a <b>taxa de passagem</b>.</p><div class="funnel" id="funnel"></div></div>' +
